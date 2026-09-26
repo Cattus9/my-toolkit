@@ -3,7 +3,7 @@
 // Design Read: developer & designer toolkit index for software engineers and makers, with a Linear-style clean language, leaning toward Shadcn UI + Geist + restrained asymmetric grid.
 // DIALS: DESIGN_VARIANCE: 6 | MOTION_INTENSITY: 4 | VISUAL_DENSITY: 4
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import PixelBlast from "@/components/PixelBlast";
 import { Terminal, TypingAnimation, AnimatedSpan } from "@/components/ui/terminal";
@@ -73,12 +73,37 @@ export default function Home() {
     { name: "Figma", logo_url: "https://www.google.com/s2/favicons?sz=64&domain=figma.com" },
   ];
 
-  const displayedLogos = (logos.length > 0 ? logos : defaultLogos).slice(0, 15).map((item) => ({
-    src: item.logo_url,
-    alt: item.name,
-    title: item.name,
-    href: item.url,
-  }));
+  const displayedLogos = useMemo(() => {
+    const source = logos.length > 0 ? logos : defaultLogos;
+    const uniqueByIcon = new Map<string, LogoItem & { iconKey: string }>();
+    for (const item of source) {
+      let key = item.logo_url;
+      try {
+        const icon = new URL(item.logo_url, "https://icons.invalid");
+        icon.searchParams.delete("sz");
+        icon.searchParams.delete("size");
+        key = icon.toString();
+      } catch {
+        key = item.logo_url.trim().toLowerCase();
+      }
+      if (!uniqueByIcon.has(key)) uniqueByIcon.set(key, { ...item, iconKey: key });
+    }
+    const unique = Array.from(uniqueByIcon.values());
+    const selected = unique.slice(0, 12);
+    if (unique.length > 1) {
+      while (selected.length < 12) {
+        const previous = selected[selected.length - 1];
+        const isLast = selected.length === 11;
+        const desired = unique[selected.length % unique.length];
+        const next = desired.iconKey !== previous.iconKey && (!isLast || desired.iconKey !== selected[0].iconKey)
+          ? desired
+          : unique.find((item) => item.iconKey !== previous.iconKey && (!isLast || item.iconKey !== selected[0].iconKey));
+        if (!next) break;
+        selected.push(next);
+      }
+    }
+    return selected.map((item) => ({ src: item.logo_url, alt: item.name, title: item.name, href: item.url }));
+  }, [logos]);
 
   return (
     <Shell>
@@ -220,15 +245,19 @@ export default function Home() {
 
       {/* 2. Tool icon marquee */}
       <section className="py-6">
-        <LogoLoop
-          logos={displayedLogos}
-          speed={42}
-          logoHeight={30}
-          gap={44}
-          fadeOut
-          scaleOnHover
-          ariaLabel="Registered tools and integrations"
-        />
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="-mx-[clamp(24px,4vw,60px)]">
+            <LogoLoop
+              logos={displayedLogos}
+              speed={42}
+              maxVisible={16}
+              gap={36}
+              fadeOut
+              scaleOnHover
+              ariaLabel="Registered tools and integrations"
+            />
+          </div>
+        </div>
       </section>
 
 

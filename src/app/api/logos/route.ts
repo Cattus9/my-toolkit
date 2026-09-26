@@ -7,12 +7,13 @@ export async function GET() {
     const cookieStore = await cookies();
     const supabase = createClient(cookieStore);
 
-    // Return each registered tool's URL and stored/fetched icon for the marquee.
+    // Fetch enough rows to collect twelve distinct site icons for the marquee.
     const { data, error } = await supabase
       .from("tools")
       .select("name, url, logo_url")
       .not("logo_url", "is", null)
-      .limit(15);
+      .order("created_at", { ascending: false })
+      .limit(100);
 
     if (error) {
       console.error("[API /api/logos GET] Supabase error:", error);

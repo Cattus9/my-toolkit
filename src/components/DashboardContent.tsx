@@ -162,7 +162,7 @@ export function DashboardContent() {
               <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto py-1">
                 <Badge
                   variant={selectedCategory === "all" ? "default" : "outline"}
-                  className="cursor-pointer text-xs py-1 px-2.5 transition-all select-none hover:border-primary/50"
+                  className="h-9 shrink-0 cursor-pointer rounded-md px-3 py-0 text-xs transition-all select-none hover:border-primary/50"
                   onClick={() => {
                     setSelectedCategory("all");
                     setSelectedSubCategory("all");
@@ -176,7 +176,7 @@ export function DashboardContent() {
                     <Badge
                       key={cat.id}
                       variant={selectedCategory === cat.id ? "default" : "outline"}
-                      className="cursor-pointer text-xs py-1 px-2.5 transition-all select-none hover:border-primary/50"
+                      className="h-9 shrink-0 cursor-pointer rounded-md px-3 py-0 text-xs transition-all select-none hover:border-primary/50"
                       onClick={() => {
                         setSelectedCategory(cat.id);
                         setSelectedSubCategory("all");

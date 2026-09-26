@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 interface AddToolFormProps {
   categories: Category[];
@@ -139,22 +138,13 @@ export function AddToolForm({
 
   return (
     <Card className="w-full max-w-2xl mx-auto border border-border/80 shadow-sm bg-card">
-      <CardHeader className="flex flex-row items-start justify-between pb-4 border-b border-border/50">
+      <CardHeader className="pb-4 border-b border-border/50">
         <div>
           <CardTitle className="text-lg font-semibold tracking-tight">Add New Resource</CardTitle>
           <CardDescription className="text-xs text-muted-foreground mt-0.5">
             Metadata, preview cards, and favicon will automatically sync.
           </CardDescription>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
-          onClick={onCancel}
-          type="button"
-        >
-          <X className="h-4 w-4" />
-        </Button>
       </CardHeader>
 
       <form onSubmit={handleSubmit}>
@@ -259,17 +249,20 @@ export function AddToolForm({
             ) : (
               <div className="flex flex-wrap gap-1.5">
                 {categories.map((cat) => (
-                  <Badge
+                  <Button
                     key={cat.id}
+                    type="button"
                     variant={selectedCategoryId === cat.id ? "default" : "outline"}
-                    className="cursor-pointer text-xs font-normal py-1 px-2.5 transition-all select-none hover:border-primary/50"
+                    size="sm"
+                    className="h-8 rounded-md px-3 text-xs font-medium transition-colors"
+                    aria-pressed={selectedCategoryId === cat.id}
                     onClick={() => {
                       setSelectedCategoryId(cat.id);
                       setSelectedSubCategoryId("");
                     }}
                   >
                     {cat.name}
-                  </Badge>
+                  </Button>
                 ))}
                 {categories.length === 0 && (
                   <p className="text-xs text-muted-foreground">No categories yet. Click New category above.</p>
@@ -329,22 +322,28 @@ export function AddToolForm({
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-1.5">
-                  <Badge
+                  <Button
+                    type="button"
                     variant={selectedSubCategoryId === "" ? "secondary" : "outline"}
-                    className="cursor-pointer text-xs font-normal py-1 px-2.5 transition-all select-none hover:border-primary/50"
+                    size="sm"
+                    className="h-8 rounded-md px-3 text-xs font-medium"
+                    aria-pressed={selectedSubCategoryId === ""}
                     onClick={() => setSelectedSubCategoryId("")}
                   >
                     None
-                  </Badge>
+                  </Button>
                   {filteredSubCategories.map((sub) => (
-                    <Badge
+                    <Button
                       key={sub.id}
+                      type="button"
                       variant={selectedSubCategoryId === sub.id ? "default" : "outline"}
-                      className="cursor-pointer text-xs font-normal py-1 px-2.5 transition-all select-none hover:border-primary/50"
+                      size="sm"
+                      className="h-8 rounded-md px-3 text-xs font-medium"
+                      aria-pressed={selectedSubCategoryId === sub.id}
                       onClick={() => setSelectedSubCategoryId(sub.id)}
                     >
                       {sub.name}
-                    </Badge>
+                    </Button>
                   ))}
                 </div>
               )}

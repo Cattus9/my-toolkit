@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export type LogoItem = {
@@ -13,8 +13,8 @@ export type LogoItem = {
 interface LogoLoopProps {
   logos: LogoItem[];
   speed?: number;
-  logoHeight?: number;
   gap?: number;
+  maxVisible?: number;
   fadeOut?: boolean;
   scaleOnHover?: boolean;
   ariaLabel?: string;
@@ -24,15 +24,45 @@ interface LogoLoopProps {
 export function LogoLoop({
   logos,
   speed = 42,
-  logoHeight = 30,
-  gap = 40,
+  gap = 32,
+  maxVisible = 16,
   fadeOut = true,
   scaleOnHover = true,
   ariaLabel = "Registered tools",
   className,
 }: LogoLoopProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const sequenceRef = useRef<HTMLDivElement>(null);
+  const [copyCount, setCopyCount] = useState(2);
+  const [logoHeight, setLogoHeight] = useState(30);
+  const logoSignature = logos.map((logo) => logo.src).join("\u0000");
+  const [gapBetween, setGapBetween] = useState(gap);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const sequence = sequenceRef.current;
+    if (!container || !sequence || logos.length === 0) return;
+    const updateCopies = () => {
+      const viewportWidth = container.clientWidth;
+      const pitch = viewportWidth / Math.max(1, maxVisible - 1);
+      const nextGap = Math.min(gap, Math.max(4, Math.round(pitch * 0.4)));
+      const nextLogoHeight = Math.max(18, Math.min(72, Math.round(pitch - nextGap)));
+      setGapBetween((current) => current === nextGap ? current : nextGap);
+      setLogoHeight((current) => current === nextLogoHeight ? current : nextLogoHeight);
+      const sequenceWidth = sequence.getBoundingClientRect().width;
+      if (!sequenceWidth) return;
+      const cycleWidth = sequenceWidth + nextGap;
+      const count = Math.max(2, Math.ceil(viewportWidth / cycleWidth) + 2);
+      setCopyCount((current) => current === count ? current : count);
+    };
+
+    const observer = new ResizeObserver(updateCopies);
+    observer.observe(container);
+    observer.observe(sequence);
+    updateCopies();
+    return () => observer.disconnect();
+  }, [gap, logoSignature, maxVisible]);
 
   useEffect(() => {
     const track = trackRef.current;
@@ -46,13 +76,12 @@ export function LogoLoop({
     let cycleWidth = 0;
 
     const measure = () => {
-      // One cycle is one sequence plus the gap before its identical successor.
-      cycleWidth = sequence.getBoundingClientRect().width + gap;
+      cycleWidth = sequence.getBoundingClientRect().width + gapBetween;
       if (cycleWidth > 0) offset %= cycleWidth;
     };
 
-    const resizeObserver = new ResizeObserver(measure);
-    resizeObserver.observe(sequence);
+    const observer = new ResizeObserver(measure);
+    observer.observe(sequence);
     measure();
 
     const animate = (now: number) => {
@@ -68,9 +97,9 @@ export function LogoLoop({
     frame = requestAnimationFrame(animate);
     return () => {
       cancelAnimationFrame(frame);
-      resizeObserver.disconnect();
+      observer.disconnect();
     };
-  }, [gap, logos.length, speed]);
+  }, [gapBetween, logoSignature, speed]);
 
   const renderLogo = (logo: LogoItem, index: number, duplicate: boolean) => {
     const image = (
@@ -104,24 +133,27 @@ export function LogoLoop({
 
   return (
     <div
-      className={cn(
-        "relative w-full overflow-hidden",
-        fadeOut && "[mask-image:linear-gradient(to_right,transparent_0%,black_10%,black_90%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_right,transparent_0%,black_10%,black_90%,transparent_100%)]",
-        className,
-      )}
+      ref={containerRef}
+      className={cn("relative w-full overflow-hidden", className)}
+      style={fadeOut ? {
+        maskImage: "linear-gradient(to right, transparent 0, black clamp(24px, 4vw, 60px), black calc(100% - clamp(24px, 4vw, 60px)), transparent 100%)",
+        WebkitMaskImage: "linear-gradient(to right, transparent 0, black clamp(24px, 4vw, 60px), black calc(100% - clamp(24px, 4vw, 60px)), transparent 100%)",
+      } : undefined}
       role="region"
       aria-label={ariaLabel}
     >
-      <div ref={trackRef} className="flex w-max items-center" style={{ gap }}>
-        <div ref={sequenceRef} className="flex flex-none items-center" style={{ gap }}>
-          {logos.map((logo, index) => renderLogo(logo, index, false))}
-        </div>
-        <div className="flex flex-none items-center" style={{ gap }} aria-hidden="true">
-          {logos.map((logo, index) => renderLogo(logo, index, true))}
-        </div>
-        <div className="flex flex-none items-center" style={{ gap }} aria-hidden="true">
-          {logos.map((logo, index) => renderLogo(logo, index, true))}
-        </div>
+      <div ref={trackRef} className="flex w-max items-center" style={{ gap: gapBetween }}>
+        {Array.from({ length: copyCount }, (_, copyIndex) => (
+          <div
+            key={copyIndex}
+            ref={copyIndex === 0 ? sequenceRef : undefined}
+            className="flex flex-none items-center"
+            style={{ gap: gapBetween }}
+            aria-hidden={copyIndex > 0 ? true : undefined}
+          >
+            {logos.map((logo, index) => renderLogo(logo, index, copyIndex > 0))}
+          </div>
+        ))}
       </div>
     </div>
   );

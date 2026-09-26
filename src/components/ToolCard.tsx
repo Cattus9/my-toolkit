@@ -29,7 +29,7 @@ export function ToolCard({ tool, onDelete, onEdit }: ToolCardProps) {
   })();
 
   return (
-    <Card className="group flex flex-col justify-between overflow-hidden border border-border/70 bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200">
+    <Card className="group flex flex-col justify-between overflow-hidden border border-border/70 bg-card p-0 hover:border-primary/40 hover:shadow-md transition-all duration-200">
       <div>
         {/* Visual Preview Banner */}
         <div className="relative aspect-video w-full bg-muted/50 border-b border-border/50 overflow-hidden flex items-center justify-center">
