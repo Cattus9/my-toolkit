@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
 
 interface EditToolModalProps {
   tool: Tool;
@@ -56,8 +57,8 @@ export function EditToolModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name || !url || !selectedCategoryId) {
-      setError("Please fill in Name, URL, and Category");
+    if (!name.trim() || !url.trim() || !selectedCategoryId) {
+      setError("Enter a name and URL, then choose a category.");
       return;
     }
 
@@ -110,11 +111,7 @@ export function EditToolModal({
 
         <form onSubmit={handleSubmit}>
           <div className="px-6 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
-            {error && (
-              <div className="p-3 text-xs bg-destructive/10 border border-destructive/20 text-destructive rounded-lg">
-                {error}
-              </div>
-            )}
+            {error && <Alert variant="destructive" className="text-xs">{error}</Alert>}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               <div className="space-y-1.5">
@@ -125,7 +122,6 @@ export function EditToolModal({
                   id="edit-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  required
                   className="h-8 text-xs"
                 />
               </div>
@@ -138,7 +134,6 @@ export function EditToolModal({
                   id="edit-url"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  required
                   className="h-8 text-xs font-mono"
                 />
               </div>
@@ -257,7 +252,7 @@ export function EditToolModal({
             <Button
               type="submit"
               size="sm"
-              disabled={loading || !name || !url || !selectedCategoryId}
+              disabled={loading}
               className="cursor-pointer text-xs h-8 gap-1.5 font-medium"
             >
               {loading ? (

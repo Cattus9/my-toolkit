@@ -142,12 +142,12 @@ export default function Home() {
                 <span>Personal & Team Resource Vault</span>
               </Badge>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-foreground leading-[1.1] drop-shadow-xs">
-                Every developer resource, neatly cataloged.
+              <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-bold tracking-tight text-foreground leading-[1.1] drop-shadow-xs">
+                Your tools, neatly organized.
               </h1>
 
               <p className="text-base sm:text-lg text-slate-200 leading-relaxed max-w-[54ch] drop-shadow-xs">
-                Save libraries, APIs, and design inspirations with automatic previews, instant tags, and domain search.
+                Save tools and design references. Find them fast.
               </p>
 
               <div className="flex flex-wrap items-center gap-3 pt-2">

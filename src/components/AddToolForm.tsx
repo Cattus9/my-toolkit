@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 
 interface AddToolFormProps {
   categories: Category[];
@@ -98,8 +99,8 @@ export function AddToolForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name || !url || !selectedCategoryId) {
-      setError("Please fill in Name, URL, and Category");
+    if (!name.trim() || !url.trim() || !selectedCategoryId) {
+      setError("Enter a name and URL, then choose a category.");
       return;
     }
 
@@ -149,11 +150,7 @@ export function AddToolForm({
 
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4 pt-5">
-          {error && (
-            <div className="p-3 text-xs bg-destructive/10 border border-destructive/20 text-destructive rounded-lg">
-              {error}
-            </div>
-          )}
+          {error && <Alert variant="destructive" className="text-xs">{error}</Alert>}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
@@ -165,7 +162,6 @@ export function AddToolForm({
                 placeholder="e.g. Radix UI, v0.dev"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                required
                 className="h-9 text-xs"
               />
             </div>
@@ -179,7 +175,6 @@ export function AddToolForm({
                 placeholder="https://example.com"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                required
                 className="h-9 text-xs font-mono"
               />
             </div>
@@ -365,7 +360,7 @@ export function AddToolForm({
           <Button
             type="submit"
             size="sm"
-            disabled={loading || !name || !url || !selectedCategoryId}
+            disabled={loading}
             className="cursor-pointer text-xs h-8 gap-1.5 font-medium"
           >
             {loading ? (

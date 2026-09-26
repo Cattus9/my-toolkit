@@ -8,7 +8,7 @@ import { AddToolForm } from "@/components/AddToolForm";
 import { EditToolModal } from "@/components/EditToolModal";
 import type { Tool, Category, SubCategory } from "@/types/database";
 import {
-  Plus, Search, Tag, FilterX, BookmarkCheck, Layers, Sparkles, Loader2, FolderOpen,
+  Plus, Search, Tag, FilterX, BookmarkCheck, Layers, Sparkles, Loader2, FolderOpen, Trash2,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Alert } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 export function DashboardContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -29,6 +30,9 @@ export function DashboardContent() {
   const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTool, setEditingTool] = useState<Tool | null>(null);
+  const [deleteCandidate, setDeleteCandidate] = useState<Tool | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -62,7 +66,10 @@ export function DashboardContent() {
 
   async function handleAddSubfolder(event: React.FormEvent) {
     event.preventDefault();
-    if (!subfolderName.trim() || !subfolderCategory) return;
+    if (!subfolderName.trim() || !subfolderCategory) {
+      setSubfolderError("Enter a name and choose a category.");
+      return;
+    }
     setSubfolderSaving(true);
     setSubfolderError("");
     try {
@@ -77,15 +84,29 @@ export function DashboardContent() {
     fetchData();
   }, []);
 
-  async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this resource?")) return;
+  function handleDelete(id: string) {
+    const candidate = tools.find((tool) => tool.id === id);
+    if (!candidate) return;
+    setDeleteError("");
+    setDeleteCandidate(candidate);
+  }
+
+  async function confirmDelete() {
+    if (!deleteCandidate) return;
+    setDeleteLoading(true);
+    setDeleteError("");
     try {
-      const res = await fetch(`/api/tools?id=${id}`, { method: "DELETE" });
-      if (res.ok) {
-        setTools((prev) => prev.filter((t) => t.id !== id));
+      const response = await fetch(`/api/tools?id=${deleteCandidate.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || "Could not delete this website.");
       }
-    } catch (err) {
-      console.error("Error deleting tool:", err);
+      setTools((current) => current.filter((tool) => tool.id !== deleteCandidate.id));
+      setDeleteCandidate(null);
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : "Could not delete this website.");
+    } finally {
+      setDeleteLoading(false);
     }
   }
 
@@ -96,13 +117,8 @@ export function DashboardContent() {
       tool.name.toLowerCase().includes(q) ||
       (tool.description && tool.description.toLowerCase().includes(q)) ||
       tool.url.toLowerCase().includes(q);
-
-    const matchesCategory =
-      selectedCategory === "all" || tool.category_id === selectedCategory;
-
-    const matchesSubCategory =
-      selectedSubCategory === "all" || tool.sub_category_id === selectedSubCategory;
-
+    const matchesCategory = selectedCategory === "all" || tool.category_id === selectedCategory;
+    const matchesSubCategory = selectedSubCategory === "all" || tool.sub_category_id === selectedSubCategory;
     return matchesSearch && matchesCategory && matchesSubCategory;
   });
 
@@ -363,14 +379,50 @@ export function DashboardContent() {
           </DialogContent>
         </Dialog>
 
+        <Dialog
+          open={Boolean(deleteCandidate)}
+          onOpenChange={(open) => {
+            if (!open && !deleteLoading) {
+              setDeleteCandidate(null);
+              setDeleteError("");
+            }
+          }}
+        >
+          <DialogContent showCloseButton={!deleteLoading}>
+            <DialogHeader>
+              <DialogTitle>Delete this website?</DialogTitle>
+              <DialogDescription>
+                {deleteCandidate
+                  ? `“${deleteCandidate.name}” will be permanently removed from your library.`
+                  : "This website will be permanently removed from your library."}
+              </DialogDescription>
+            </DialogHeader>
+            {deleteError && <Alert variant="destructive">{deleteError}</Alert>}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={deleteLoading}
+                onClick={() => setDeleteCandidate(null)}
+              >
+                Cancel
+              </Button>
+              <Button type="button" variant="destructive" disabled={deleteLoading} onClick={confirmDelete}>
+                {deleteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                Delete website
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={subfolderOpen} onOpenChange={setSubfolderOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>New sub-folder</DialogTitle><DialogDescription>Add a sub-category under an existing category.</DialogDescription></DialogHeader>
             <form onSubmit={handleAddSubfolder} className="space-y-4">
-              {subfolderError && <p className="rounded-md bg-destructive/10 p-2 text-xs text-destructive">{subfolderError}</p>}
-              <div className="space-y-2"><Label htmlFor="subfolder-name">Name</Label><Input id="subfolder-name" value={subfolderName} onChange={(event) => setSubfolderName(event.target.value)} placeholder="e.g. Component libraries" required /></div>
-              <div className="space-y-2"><Label htmlFor="subfolder-category">Category</Label><select id="subfolder-category" value={subfolderCategory} onChange={(event) => setSubfolderCategory(event.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" required><option value="">Choose a category</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></div>
-              <Button type="submit" disabled={subfolderSaving || !subfolderName.trim() || !subfolderCategory} className="w-full">{subfolderSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create sub-folder"}</Button>
+              {subfolderError && <Alert variant="destructive" className="text-xs">{subfolderError}</Alert>}
+              <div className="space-y-2"><Label htmlFor="subfolder-name">Name</Label><Input id="subfolder-name" value={subfolderName} onChange={(event) => setSubfolderName(event.target.value)} placeholder="e.g. Component libraries" /></div>
+              <div className="space-y-2"><Label htmlFor="subfolder-category">Category</Label><select id="subfolder-category" value={subfolderCategory} onChange={(event) => setSubfolderCategory(event.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Choose a category</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></div>
+              <Button type="submit" disabled={subfolderSaving} className="w-full">{subfolderSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create sub-folder"}</Button>
             </form>
           </DialogContent>
         </Dialog>
