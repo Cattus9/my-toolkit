@@ -249,7 +249,7 @@ export function DashboardContent() {
 
             {/* Content Cards Grid */}
             {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
                 {Array.from({ length: 8 }).map((_, i) => (
                   <Card key={i} className="overflow-hidden border-border/60">
                     <Skeleton className="aspect-video w-full" />
@@ -290,7 +290,7 @@ export function DashboardContent() {
                           <Separator className="flex-1" />
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
                           {catTools.map((tool) => (
                             <ToolCard
                               key={tool.id}
@@ -304,7 +304,7 @@ export function DashboardContent() {
                     );
                   })
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
                     {filteredTools.map((tool) => (
                       <ToolCard
                         key={tool.id}

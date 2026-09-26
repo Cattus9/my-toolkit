@@ -83,7 +83,7 @@ export function ToolCard({ tool, onDelete, onEdit }: ToolCardProps) {
             </span>
           </div>
 
-          <div className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
@@ -115,14 +115,14 @@ export function ToolCard({ tool, onDelete, onEdit }: ToolCardProps) {
         </div>
 
         {/* Card Main Info */}
-        <CardContent className="p-4 space-y-3">
+        <CardContent className="p-3 space-y-2.5">
           <div className="flex items-start gap-2.5">
             {tool.logo_url ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={tool.logo_url}
                 alt={`${tool.name} logo`}
-                className="w-5 h-5 rounded object-contain bg-white dark:bg-zinc-800 p-0.5 border border-border/80 shrink-0 mt-0.5"
+                className="w-4 h-4 rounded object-contain bg-white dark:bg-zinc-800 p-0.5 border border-border/80 shrink-0 mt-0.5"
                 onError={(e) => {
                   e.currentTarget.style.display = "none";
                   const fallback = e.currentTarget.parentElement?.querySelector(".logo-fallback");
@@ -131,33 +131,33 @@ export function ToolCard({ tool, onDelete, onEdit }: ToolCardProps) {
               />
             ) : null}
             <div className={`logo-fallback ${tool.logo_url ? "hidden" : ""} shrink-0 mt-0.5`}>
-              <Globe className="w-4 h-4 text-muted-foreground" />
+              <Globe className="w-3.5 h-3.5 text-muted-foreground" />
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate">
+              <h3 className="font-medium text-xs text-foreground group-hover:text-primary transition-colors truncate">
                 {tool.name}
               </h3>
-              <p className="text-[11px] font-mono text-muted-foreground truncate">
+              <p className="text-[10px] font-mono text-muted-foreground truncate">
                 {domain}
               </p>
             </div>
           </div>
 
-          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed min-h-[2.5rem]">
+          <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed min-h-[2.25rem]">
             {tool.description || "No description provided."}
           </p>
 
           {/* Category badges */}
           <div className="flex flex-wrap items-center gap-1.5 pt-1">
             {tool.categories?.name && (
-              <Badge variant="secondary" className="text-[10px] px-2 py-0 h-5 font-normal">
+              <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 font-normal">
                 {tool.categories.name}
               </Badge>
             )}
             {tool.sub_categories?.name && (
               <Badge
                 variant="outline"
-                className="text-[10px] px-2 py-0 h-5 font-normal text-muted-foreground border-border/80"
+                className="text-[9px] px-1.5 py-0 h-4 font-normal text-muted-foreground border-border/80"
               >
                 {tool.sub_categories.name}
               </Badge>
@@ -167,12 +167,12 @@ export function ToolCard({ tool, onDelete, onEdit }: ToolCardProps) {
       </div>
 
       {/* Card Action Footer */}
-      <CardFooter className="px-4 py-3 border-t border-border/50 bg-muted/15 flex items-center justify-between">
+      <CardFooter className="px-3 py-2 border-t border-border/50 bg-muted/15 flex items-center justify-between">
         <a
           href={tool.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+          className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
         >
           <span>Visit site</span>
           <ExternalLink className="h-3 w-3 opacity-70" />
@@ -181,19 +181,19 @@ export function ToolCard({ tool, onDelete, onEdit }: ToolCardProps) {
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
-            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
+            className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
             onClick={() => onEdit(tool)}
             title="Edit"
           >
-            <Edit3 className="h-3.5 w-3.5" />
+            <Edit3 className="h-3 w-3" />
           </Button>
           <Button
             variant="ghost"
-            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
             onClick={() => onDelete(tool.id)}
             title="Delete"
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2 className="h-3 w-3" />
           </Button>
         </div>
       </CardFooter>
