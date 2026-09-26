@@ -24,13 +24,14 @@ export async function GET(request: Request) {
 
     clearTimeout(timeoutId);
 
-    // Let's formulate standard default logo (Google Favicon service as a solid fallback)
+    // Formulate standard default logo and high-res web hero screenshot
     const fallbackLogo = `https://www.google.com/s2/favicons?sz=64&domain=${parsedUrl.hostname}`;
+    const fallbackScreenshot = `https://image.thum.io/get/width/1200/crop/675/noanimate/${encodeURIComponent(parsedUrl.toString())}`;
 
     if (!response.ok) {
-      return NextResponse.json({ 
-        image: null,
-        logo: fallbackLogo
+      return NextResponse.json({
+        image: fallbackScreenshot,
+        logo: fallbackLogo,
       });
     }
 
@@ -62,14 +63,6 @@ export async function GET(request: Request) {
       }
     }
 
-    // 3. Try icon
-    if (!imageUrl) {
-      match = html.match(shortcutIconRegex);
-      if (match && match[1]) {
-        imageUrl = match[1];
-      }
-    }
-
     // Resolve imageUrl helper
     if (imageUrl) {
       if (imageUrl.startsWith("//")) {
@@ -80,7 +73,8 @@ export async function GET(request: Request) {
         imageUrl = `${parsedUrl.origin}/${imageUrl}`;
       }
     } else {
-      imageUrl = "";
+      // Fallback to real web hero screenshot of the link
+      imageUrl = fallbackScreenshot;
     }
 
     // Now find the best logo / icon URL

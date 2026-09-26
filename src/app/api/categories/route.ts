@@ -13,11 +13,12 @@ export async function GET() {
       .order("name", { ascending: true });
 
     if (error) {
+      console.error("[API /api/categories GET] Supabase error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
     return NextResponse.json(data);
   } catch (err: unknown) {
+    console.error("[API /api/categories GET] Unexpected error:", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Internal Server Error" },
       { status: 500 }
@@ -42,11 +43,12 @@ export async function POST(request: Request) {
       .single();
 
     if (error) {
+      console.error("[API /api/categories POST] Supabase error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
     return NextResponse.json(data);
   } catch (err: unknown) {
+    console.error("[API /api/categories POST] Unexpected error:", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Internal Server Error" },
       { status: 500 }

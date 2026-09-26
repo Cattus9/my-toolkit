@@ -1,8 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X, Loader2 } from "lucide-react";
+import { Plus, X, Loader2, Sparkles, FolderPlus, Tag } from "lucide-react";
 import type { Category, SubCategory } from "@/types/database";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 interface AddToolFormProps {
   categories: Category[];
@@ -17,25 +23,23 @@ export function AddToolForm({
   subCategories,
   onSuccess,
   onCancel,
-  onRefreshCategories
+  onRefreshCategories,
 }: AddToolFormProps) {
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [selectedSubCategoryId, setSelectedSubCategoryId] = useState("");
-  
-  // Custom category / sub-category addition states
+
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
-  
+
   const [isAddingSubCategory, setIsAddingSubCategory] = useState(false);
   const [newSubCategoryName, setNewSubCategoryName] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Filter subcategories based on selected category
   const filteredSubCategories = subCategories.filter(
     (sub) => sub.category_id === selectedCategoryId
   );
@@ -51,7 +55,7 @@ export function AddToolForm({
         body: JSON.stringify({ name: newCategoryName.trim() }),
       });
       if (!response.ok) {
-        throw new Error(await response.text() || "Failed to create category");
+        throw new Error((await response.text()) || "Failed to create category");
       }
       const data = await response.json();
       await onRefreshCategories();
@@ -73,13 +77,13 @@ export function AddToolForm({
       const response = await fetch("/api/sub-categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           name: newSubCategoryName.trim(),
-          category_id: selectedCategoryId
+          category_id: selectedCategoryId,
         }),
       });
       if (!response.ok) {
-        throw new Error(await response.text() || "Failed to create subcategory");
+        throw new Error((await response.text()) || "Failed to create subcategory");
       }
       const data = await response.json();
       await onRefreshCategories();
@@ -100,7 +104,6 @@ export function AddToolForm({
       return;
     }
 
-    // Auto-prepend https:// if URL does not start with http:// or https://
     let sanitizedUrl = url.trim();
     if (sanitizedUrl && !/^https?:\/\//i.test(sanitizedUrl)) {
       sanitizedUrl = `https://${sanitizedUrl}`;
@@ -109,20 +112,21 @@ export function AddToolForm({
     try {
       setLoading(true);
       setError("");
-
       const response = await fetch("/api/tools", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name,
+          name: name.trim(),
           url: sanitizedUrl,
-          description,
+          description: description.trim(),
           category_id: selectedCategoryId,
           sub_category_id: selectedSubCategoryId || null,
         }),
       });
+
       if (!response.ok) {
-        throw new Error(await response.text() || "Failed to add tool");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to create tool");
       }
 
       onSuccess();
@@ -134,205 +138,251 @@ export function AddToolForm({
   }
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-6 md:p-8 max-w-2xl mx-auto shadow-lg relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-accent to-primary" />
-      
-      <div className="flex justify-between items-center mb-6">
+    <Card className="w-full max-w-2xl mx-auto border border-border/80 shadow-sm bg-card">
+      <CardHeader className="flex flex-row items-start justify-between pb-4 border-b border-border/50">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Add New Web Tool</h2>
-          <p className="text-sm text-muted-foreground">Keep your discovered web links organized and categorized.</p>
+          <CardTitle className="text-lg font-semibold tracking-tight">Add New Resource</CardTitle>
+          <CardDescription className="text-xs text-muted-foreground mt-0.5">
+            Metadata, preview cards, and favicon will automatically sync.
+          </CardDescription>
         </div>
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
           onClick={onCancel}
-          className="p-2 hover:bg-muted rounded-full transition-colors"
           type="button"
         >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
+          <X className="h-4 w-4" />
+        </Button>
+      </CardHeader>
 
-      {error && (
-        <div className="mb-6 p-4 rounded-xl border border-destructive/20 bg-destructive/10 text-destructive text-sm font-medium">
-          {error}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Name & URL */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Tool Name</label>
-            <input
-              type="text"
-              placeholder="e.g. Supabase, Tailwind Play"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="px-4 py-2.5 rounded-xl border border-border bg-background/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
-              required
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Web Link / URL</label>
-            <input
-              type="text"
-              placeholder="e.g. supabase.com"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              className="px-4 py-2.5 rounded-xl border border-border bg-background/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
-              required
-            />
-          </div>
-        </div>
-
-        {/* Category selector */}
-        <div className="flex flex-col gap-1.5">
-          <div className="flex justify-between items-center">
-            <label className="text-sm font-medium">Category</label>
-            {!isAddingCategory && (
-              <button
-                type="button"
-                onClick={() => setIsAddingCategory(true)}
-                className="text-xs text-primary font-medium hover:underline flex items-center gap-1"
-              >
-                <Plus className="h-3 w-3" /> Add New Category
-              </button>
-            )}
-          </div>
-
-          {isAddingCategory ? (
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="New category name"
-                value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-border bg-background/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
-              />
-              <button
-                type="button"
-                onClick={handleAddCategory}
-                disabled={loading}
-                className="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/95 text-sm transition-colors"
-              >
-                Add
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsAddingCategory(false)}
-                className="px-3 py-2 rounded-xl border border-border hover:bg-muted text-sm transition-colors"
-              >
-                Cancel
-              </button>
+      <form onSubmit={handleSubmit}>
+        <CardContent className="space-y-4 pt-5">
+          {error && (
+            <div className="p-3 text-xs bg-destructive/10 border border-destructive/20 text-destructive rounded-lg">
+              {error}
             </div>
-          ) : (
-            <select
-              value={selectedCategoryId}
-              onChange={(e) => {
-                setSelectedCategoryId(e.target.value);
-                setSelectedSubCategoryId("");
-              }}
-              className="px-4 py-2.5 rounded-xl border border-border bg-background/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm appearance-none"
-              required
-            >
-              <option value="">Select Category</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
           )}
-        </div>
 
-        {/* Sub-category selector */}
-        {selectedCategoryId && (
-          <div className="flex flex-col gap-1.5">
-            <div className="flex justify-between items-center">
-              <label className="text-sm font-medium">Sub-Category (Optional)</label>
-              {!isAddingSubCategory && (
-                <button
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="tool-name" className="text-xs font-medium text-foreground">
+                Tool Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="tool-name"
+                placeholder="e.g. Radix UI, v0.dev"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="tool-url" className="text-xs font-medium text-foreground">
+                Website URL <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="tool-url"
+                placeholder="https://example.com"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                required
+                className="h-9 text-xs font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="tool-description" className="text-xs font-medium text-foreground">
+              Description <span className="text-muted-foreground text-[11px] font-normal">(Optional)</span>
+            </Label>
+            <Textarea
+              id="tool-description"
+              placeholder="Short note about what this tool does or why you saved it..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="text-xs min-h-[72px] resize-none"
+            />
+          </div>
+
+          {/* Category selection */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                <FolderPlus className="h-3.5 w-3.5 text-muted-foreground" />
+                Category <span className="text-destructive">*</span>
+              </Label>
+              {!isAddingCategory && (
+                <Button
                   type="button"
-                  onClick={() => setIsAddingSubCategory(true)}
-                  className="text-xs text-primary font-medium hover:underline flex items-center gap-1"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer px-1.5"
+                  onClick={() => setIsAddingCategory(true)}
                 >
-                  <Plus className="h-3 w-3" /> Add New Sub-Category
-                </button>
+                  <Plus className="h-3 w-3 mr-1" />
+                  New category
+                </Button>
               )}
             </div>
 
-            {isAddingSubCategory ? (
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="New subcategory name"
-                  value={newSubCategoryName}
-                  onChange={(e) => setNewSubCategoryName(e.target.value)}
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-border bg-background/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
+            {isAddingCategory ? (
+              <div className="flex items-center gap-2 p-2.5 rounded-lg border border-dashed border-border bg-muted/20">
+                <Input
+                  placeholder="Category title..."
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  className="h-8 text-xs flex-1"
                 />
-                <button
+                <Button
                   type="button"
-                  onClick={handleAddSubCategory}
-                  disabled={loading}
-                  className="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/95 text-sm transition-colors"
+                  size="sm"
+                  className="h-8 text-xs cursor-pointer"
+                  onClick={handleAddCategory}
+                  disabled={loading || !newCategoryName.trim()}
                 >
-                  Add
-                </button>
-                <button
+                  Save
+                </Button>
+                <Button
                   type="button"
-                  onClick={() => setIsAddingSubCategory(false)}
-                  className="px-3 py-2 rounded-xl border border-border hover:bg-muted text-sm transition-colors"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 cursor-pointer"
+                  onClick={() => setIsAddingCategory(false)}
                 >
-                  Cancel
-                </button>
+                  <X className="h-3.5 w-3.5" />
+                </Button>
               </div>
             ) : (
-              <select
-                value={selectedSubCategoryId}
-                onChange={(e) => setSelectedSubCategoryId(e.target.value)}
-                className="px-4 py-2.5 rounded-xl border border-border bg-background/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm appearance-none"
-              >
-                <option value="">Select Sub-Category (None)</option>
-                {filteredSubCategories.map((sub) => (
-                  <option key={sub.id} value={sub.id}>
-                    {sub.name}
-                  </option>
+              <div className="flex flex-wrap gap-1.5">
+                {categories.map((cat) => (
+                  <Badge
+                    key={cat.id}
+                    variant={selectedCategoryId === cat.id ? "default" : "outline"}
+                    className="cursor-pointer text-xs font-normal py-1 px-2.5 transition-all select-none hover:border-primary/50"
+                    onClick={() => {
+                      setSelectedCategoryId(cat.id);
+                      setSelectedSubCategoryId("");
+                    }}
+                  >
+                    {cat.name}
+                  </Badge>
                 ))}
-              </select>
+                {categories.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No categories yet. Click New category above.</p>
+                )}
+              </div>
             )}
           </div>
-        )}
 
-        {/* Description */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">Description</label>
-          <textarea
-            placeholder="A short description of the tool..."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={3}
-            className="px-4 py-2.5 rounded-xl border border-border bg-background/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm resize-none"
-          />
-        </div>
+          {/* Sub-category selection */}
+          {selectedCategoryId && (
+            <div className="space-y-2 pt-1 border-t border-border/40">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                  <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+                  Sub-category <span className="text-muted-foreground text-[11px] font-normal">(Optional)</span>
+                </Label>
+                {!isAddingSubCategory && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer px-1.5"
+                    onClick={() => setIsAddingSubCategory(true)}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    New subcategory
+                  </Button>
+                )}
+              </div>
 
-        {/* Actions */}
-        <div className="flex justify-end gap-3 pt-4 border-t border-border">
-          <button
+              {isAddingSubCategory ? (
+                <div className="flex items-center gap-2 p-2.5 rounded-lg border border-dashed border-border bg-muted/20">
+                  <Input
+                    placeholder="Subcategory title..."
+                    value={newSubCategoryName}
+                    onChange={(e) => setNewSubCategoryName(e.target.value)}
+                    className="h-8 text-xs flex-1"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8 text-xs cursor-pointer"
+                    onClick={handleAddSubCategory}
+                    disabled={loading || !newSubCategoryName.trim()}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 cursor-pointer"
+                    onClick={() => setIsAddingSubCategory(false)}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge
+                    variant={selectedSubCategoryId === "" ? "secondary" : "outline"}
+                    className="cursor-pointer text-xs font-normal py-1 px-2.5 transition-all select-none hover:border-primary/50"
+                    onClick={() => setSelectedSubCategoryId("")}
+                  >
+                    None
+                  </Badge>
+                  {filteredSubCategories.map((sub) => (
+                    <Badge
+                      key={sub.id}
+                      variant={selectedSubCategoryId === sub.id ? "default" : "outline"}
+                      className="cursor-pointer text-xs font-normal py-1 px-2.5 transition-all select-none hover:border-primary/50"
+                      onClick={() => setSelectedSubCategoryId(sub.id)}
+                    >
+                      {sub.name}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+
+        <CardFooter className="flex items-center justify-end gap-2.5 pt-4 pb-4 px-6 border-t border-border/50 bg-muted/10">
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={onCancel}
-            className="px-5 py-2.5 rounded-xl border border-border hover:bg-muted text-sm font-medium transition-colors"
+            disabled={loading}
+            className="cursor-pointer text-xs h-8"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
-            disabled={loading}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 text-sm shadow-md shadow-primary/20 transition-all hover:scale-102 active:scale-98 disabled:opacity-50 disabled:pointer-events-none"
+            size="sm"
+            disabled={loading || !name || !url || !selectedCategoryId}
+            className="cursor-pointer text-xs h-8 gap-1.5 font-medium"
           >
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            Save Tool
-          </button>
-        </div>
+            {loading ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <span>Saving tool...</span>
+              </>
+            ) : (
+              <>
+                <Plus className="h-3.5 w-3.5" />
+                <span>Save Resource</span>
+              </>
+            )}
+          </Button>
+        </CardFooter>
       </form>
-    </div>
+    </Card>
   );
 }

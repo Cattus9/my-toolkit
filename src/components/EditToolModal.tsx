@@ -1,8 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Loader2, Save } from "lucide-react";
+import { X, Loader2, Save, FolderOpen, Tag, Image as ImageIcon, Globe } from "lucide-react";
 import type { Tool, Category, SubCategory } from "@/types/database";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 interface EditToolModalProps {
   tool: Tool;
@@ -17,7 +30,7 @@ export function EditToolModal({
   categories,
   subCategories,
   onClose,
-  onSuccess
+  onSuccess,
 }: EditToolModalProps) {
   const [name, setName] = useState(tool.name);
   const [url, setUrl] = useState(tool.url);
@@ -30,12 +43,10 @@ export function EditToolModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Filter subcategories based on selected category
   const filteredSubCategories = subCategories.filter(
     (sub) => sub.category_id === selectedCategoryId
   );
 
-  // If category changes, check if the selected subcategory is still valid, if not reset it
   useEffect(() => {
     const isValid = filteredSubCategories.some((sub) => sub.id === selectedSubCategoryId);
     if (!isValid && selectedSubCategoryId !== "") {
@@ -64,19 +75,19 @@ export function EditToolModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: tool.id,
-          name,
+          name: name.trim(),
           url: sanitizedUrl,
-          description: description || null,
+          description: description.trim(),
           category_id: selectedCategoryId,
           sub_category_id: selectedSubCategoryId || null,
-          logo_url: logoUrl || null,
-          image_url: imageUrl || null
+          logo_url: logoUrl.trim() || null,
+          image_url: imageUrl.trim() || null,
         }),
       });
 
       if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(errText || "Failed to update tool");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to update tool");
       }
 
       onSuccess();
@@ -88,174 +99,182 @@ export function EditToolModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg bg-card border border-border rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-border bg-muted/20">
-          <div>
-            <h2 className="font-bold text-lg">Edit Tool</h2>
-            <p className="text-muted-foreground text-xs">Update your tool credentials and details.</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-lg p-0 overflow-hidden border-border/80 sm:rounded-xl">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/50">
+          <DialogTitle className="text-base font-semibold tracking-tight">Edit Resource</DialogTitle>
+          <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+            Modify details, tags, or visual preview endpoints.
+          </DialogDescription>
+        </DialogHeader>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
-          {error && (
-            <div className="p-3 text-xs bg-destructive/10 border border-destructive/20 text-destructive rounded-xl">
-              {error}
+        <form onSubmit={handleSubmit}>
+          <div className="px-6 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
+            {error && (
+              <div className="p-3 text-xs bg-destructive/10 border border-destructive/20 text-destructive rounded-lg">
+                {error}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-name" className="text-xs font-medium">
+                  Name <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="edit-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  className="h-8 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-url" className="text-xs font-medium">
+                  URL <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="edit-url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  required
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
             </div>
-          )}
 
-          {/* Name */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Tool Name *
-            </label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Supabase, Tailwind, DevDocs"
-              className="w-full px-3 py-2 rounded-xl border border-border bg-background/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
-            />
-          </div>
-
-          {/* URL */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              URL / Link *
-            </label>
-            <input
-              type="text"
-              required
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="e.g. https://supabase.com"
-              className="w-full px-3 py-2 rounded-xl border border-border bg-background/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
-            />
-          </div>
-
-          {/* Description */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Description
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe the tool/bookmark..."
-              rows={3}
-              className="w-full px-3 py-2 rounded-xl border border-border bg-background/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm resize-none"
-            />
-          </div>
-
-          {/* Category Select */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Category *
-              </label>
-              <select
-                required
-                value={selectedCategoryId}
-                onChange={(e) => setSelectedCategoryId(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-              >
-                <option value="" disabled>Select category</option>
+              <Label htmlFor="edit-desc" className="text-xs font-medium">
+                Description
+              </Label>
+              <Textarea
+                id="edit-desc"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="text-xs min-h-[64px] resize-none"
+              />
+            </div>
+
+            {/* Category selection */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium flex items-center gap-1.5">
+                <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" />
+                Category <span className="text-destructive">*</span>
+              </Label>
+              <div className="flex flex-wrap gap-1.5">
                 {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
+                  <Badge
+                    key={cat.id}
+                    variant={selectedCategoryId === cat.id ? "default" : "outline"}
+                    className="cursor-pointer text-xs font-normal py-0.5 px-2 transition-all select-none hover:border-primary/50"
+                    onClick={() => {
+                      setSelectedCategoryId(cat.id);
+                      setSelectedSubCategoryId("");
+                    }}
+                  >
                     {cat.name}
-                  </option>
+                  </Badge>
                 ))}
-              </select>
+              </div>
             </div>
 
-            {/* Sub Category Select */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Sub-Category
-              </label>
-              <select
-                value={selectedSubCategoryId}
-                onChange={(e) => setSelectedSubCategoryId(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-              >
-                <option value="">None</option>
-                {filteredSubCategories.map((sub) => (
-                  <option key={sub.id} value={sub.id}>
-                    {sub.name}
-                  </option>
-                ))}
-              </select>
+            {/* Subcategory selection */}
+            {selectedCategoryId && filteredSubCategories.length > 0 && (
+              <div className="space-y-1.5 pt-1 border-t border-border/40">
+                <Label className="text-xs font-medium flex items-center gap-1.5">
+                  <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+                  Sub-category
+                </Label>
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge
+                    variant={selectedSubCategoryId === "" ? "secondary" : "outline"}
+                    className="cursor-pointer text-xs font-normal py-0.5 px-2 transition-all select-none"
+                    onClick={() => setSelectedSubCategoryId("")}
+                  >
+                    None
+                  </Badge>
+                  {filteredSubCategories.map((sub) => (
+                    <Badge
+                      key={sub.id}
+                      variant={selectedSubCategoryId === sub.id ? "default" : "outline"}
+                      className="cursor-pointer text-xs font-normal py-0.5 px-2 transition-all select-none"
+                      onClick={() => setSelectedSubCategoryId(sub.id)}
+                    >
+                      {sub.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-3 pt-2 border-t border-border/40">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                Visual Assets (Optional)
+              </p>
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  <Label htmlFor="edit-logo" className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <Globe className="h-3 w-3" />
+                    Favicon / Logo URL
+                  </Label>
+                  <Input
+                    id="edit-logo"
+                    placeholder="https://.../logo.png"
+                    value={logoUrl}
+                    onChange={(e) => setLogoUrl(e.target.value)}
+                    className="h-8 text-xs font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="edit-image" className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <ImageIcon className="h-3 w-3" />
+                    Preview Image URL
+                  </Label>
+                  <Input
+                    id="edit-image"
+                    placeholder="https://.../preview.jpg"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    className="h-8 text-xs font-mono"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Custom Logo & Image Overrides */}
-          <div className="border-t border-border/60 pt-4 space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Visual Assets (Optional)</h3>
-            
-            {/* Logo URL */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">
-                Logo Image URL
-              </label>
-              <input
-                type="text"
-                value={logoUrl}
-                onChange={(e) => setLogoUrl(e.target.value)}
-                placeholder="Custom favicon or logo icon URL"
-                className="w-full px-3 py-2 rounded-xl border border-border bg-background/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-xs"
-              />
-            </div>
-
-            {/* Image Preview URL */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">
-                Thumbnail Image URL
-              </label>
-              <input
-                type="text"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="Custom preview card image URL"
-                className="w-full px-3 py-2 rounded-xl border border-border bg-background/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-xs"
-              />
-            </div>
-          </div>
-
-          {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-border bg-muted/10 -mx-6 -mb-6 p-6">
-            <button
+          <DialogFooter className="px-6 py-3.5 border-t border-border/50 bg-muted/10 flex items-center justify-end gap-2">
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2 border border-border text-sm font-semibold rounded-xl bg-background hover:bg-accent/10 transition-colors disabled:opacity-50"
+              className="cursor-pointer text-xs h-8"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              disabled={loading}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold shadow-md shadow-primary/20 hover:bg-primary/95 transition-all disabled:opacity-50 text-sm"
+              size="sm"
+              disabled={loading || !name || !url || !selectedCategoryId}
+              className="cursor-pointer text-xs h-8 gap-1.5 font-medium"
             >
               {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>Saving...</span>
+                </>
               ) : (
-                <Save className="h-4 w-4" />
+                <>
+                  <Save className="h-3.5 w-3.5" />
+                  <span>Save Changes</span>
+                </>
               )}
-              Save Changes
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
