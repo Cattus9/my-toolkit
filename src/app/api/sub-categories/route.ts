@@ -58,3 +58,20 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const id = new URL(request.url).searchParams.get("id");
+    if (!id) return NextResponse.json({ error: "Sub-folder id is required" }, { status: 400 });
+    const supabase = createClient(await cookies());
+    const websites = await supabase.from("tools").select("id").eq("sub_category_id", id).limit(1);
+    if (websites.error) throw new Error(websites.error.message);
+    if (websites.data.length) return NextResponse.json({ error: "Remove all websites from this sub-folder before deleting it." }, { status: 409 });
+    const result = await supabase.from("sub_categories").delete().eq("id", id).select("id");
+    if (result.error) return NextResponse.json({ error: result.error.code === "23503" ? "This sub-folder is no longer empty. Refresh and try again." : result.error.message }, { status: result.error.code === "23503" ? 409 : 500 });
+    if (!result.data.length) return NextResponse.json({ error: "Sub-folder not found or deletion is not permitted." }, { status: 404 });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Could not delete sub-folder." }, { status: 500 });
+  }
+}

@@ -7,10 +7,21 @@ A modern, high-performance developer tool-stash and link directory built to orga
 ## ✨ Features
 
 - **🚀 Modern UI/UX:** Built with Tailwind CSS, supporting elegant layouts, interactive search, and category grouping.
-- **📂 Categorized Tool Stash:** Easily group developer resources into core categories and detailed sub-categories.
+- **Categorized Tool Stash:** Browse category folders at `/dashboard`, direct websites and sub-folders at `/dashboard/[categoryId]`, and nested websites at `/dashboard/[categoryId]/[subCategoryId]`. Folder URLs use stable database IDs.
 - **🔗 Meta Fetching:** Dynamic API endpoints to fetch websites' metadata and logos seamlessly.
 - **⚡ Supercharged Backend:** Fully integrated with Supabase for fast, reliable data persistence and SSR capabilities.
 - **⚙️ Developer Dashboard:** Full CRUD capabilities for adding, updating, and removing developer tools/links.
+- **Folder-scoped navigation:** Sub-folder contents stay hidden until opened. Search only examines the current level. New sub-folder creation is enabled inside category folders and automatically uses the current category; Add Link preselects the current category and sub-folder.
+- **Empty folder deletion:** Folder cards offer a Shadcn delete confirmation. Stored websites block deletion, including websites inside a category's sub-folders. Delete empty sub-folders before deleting their parent category. Both DELETE endpoints recheck contents and return HTTP 409 when occupied.
+- **Website preview states:** Cards display a loading message while fetching the preview and a clear unavailable state if both the stored preview and screenshot fallback fail. The website link remains accessible.
+- **Notebook:** `/notebook` stores plain-text notes in Supabase with create, read, edit, delete, and copy actions. Whitespace and line breaks are preserved. Desktop and mobile navigation include Notebook.
+
+### Notebook database setup
+
+Run `supabase/migrations/202610120001_notebook.sql` in your project's Supabase SQL Editor before using Notebook. The application publishable key cannot create database tables. Until the migration is applied, Notebook displays a database setup error rather than pretending to save locally.
+
+Notebook is intentionally public: anonymous visitors can read, create, update, and delete notes. Do not store secrets or personal data. Clipboard copy requires browser permission and a secure context (HTTPS or localhost); if blocked, select the displayed text and copy manually.
+
 
 ---
 

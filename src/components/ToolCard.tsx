@@ -1,6 +1,7 @@
 "use client";
 
-import { ExternalLink, Trash2, Globe, MoreVertical, Edit3 } from "lucide-react";
+import { useState } from "react";
+import { ExternalLink, Trash2, Globe, MoreVertical, Edit3, ImageOff } from "lucide-react";
 import type { Tool } from "@/types/database";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,29 @@ interface ToolCardProps {
   onEdit: (tool: Tool) => void;
 }
 
+function WebsitePreview({ url, imageUrl, name }: { url: string; imageUrl: string | null; name: string }) {
+  const screenshotUrl = `https://image.thum.io/get/width/1200/crop/675/noanimate/${encodeURIComponent(url)}`;
+  const [source, setSource] = useState(imageUrl || screenshotUrl);
+  const [status, setStatus] = useState<"loading" | "ready" | "unavailable">("loading");
+
+  return <>
+    {status !== "unavailable" && (
+      /* eslint-disable-next-line @next/next/no-img-element */
+      <img key={source} src={source} alt={`${name} preview`} className={`object-cover w-full h-full transition-opacity ${status === "ready" ? "opacity-100 group-hover:scale-105" : "opacity-0"}`} onLoad={() => setStatus("ready")} onError={() => {
+        if (source !== screenshotUrl) {
+          setStatus("loading");
+          setSource(screenshotUrl);
+        } else setStatus("unavailable");
+      }} />
+    )}
+    {status !== "ready" && <div role="status" className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 px-3 text-center bg-muted/30">
+      <ImageOff aria-hidden="true" className="h-5 w-5 text-muted-foreground" />
+      <p className="text-xs font-medium text-foreground">{status === "loading" ? "Loading preview…" : "Preview unavailable"}</p>
+      <p className="text-[10px] text-muted-foreground">{status === "loading" ? "Fetching website appearance" : "You can still visit this website"}</p>
+    </div>}
+  </>;
+}
+
 export function ToolCard({ tool, onDelete, onEdit }: ToolCardProps) {
   const domain = (() => {
     try {
@@ -33,55 +57,7 @@ export function ToolCard({ tool, onDelete, onEdit }: ToolCardProps) {
       <div>
         {/* Visual Preview Banner */}
         <div className="relative aspect-video w-full bg-muted/50 border-b border-border/50 overflow-hidden flex items-center justify-center">
-          {tool.image_url ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={tool.image_url}
-              alt={tool.name}
-              className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
-              onError={(e) => {
-                if (!e.currentTarget.src.includes("image.thum.io") && tool.url) {
-                  e.currentTarget.src = `https://image.thum.io/get/width/1200/crop/675/noanimate/${encodeURIComponent(tool.url)}`;
-                } else {
-                  e.currentTarget.style.display = "none";
-                  const parent = e.currentTarget.parentElement;
-                  if (parent) {
-                    const placeholder = parent.querySelector(".fallback-placeholder");
-                    if (placeholder) {
-                      placeholder.classList.remove("hidden");
-                    }
-                  }
-                }
-              }}
-            />
-          ) : (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={`https://image.thum.io/get/width/1200/crop/675/noanimate/${encodeURIComponent(tool.url)}`}
-              alt={tool.name}
-              className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-                const parent = e.currentTarget.parentElement;
-                if (parent) {
-                  const placeholder = parent.querySelector(".fallback-placeholder");
-                  if (placeholder) {
-                    placeholder.classList.remove("hidden");
-                  }
-                }
-              }}
-            />
-          )}
-
-          {/* Fallback layout */}
-          <div
-            className="fallback-placeholder hidden absolute inset-0 flex flex-col items-center justify-center p-6 bg-muted/30"
-          >
-            <Globe className="h-8 w-8 text-muted-foreground/40 mb-2 stroke-[1.5]" />
-            <span className="text-[11px] font-mono text-muted-foreground bg-background/80 px-2.5 py-0.5 rounded-md border border-border/80">
-              {domain}
-            </span>
-          </div>
+          <WebsitePreview key={`${tool.url}:${tool.image_url}`} url={tool.url} imageUrl={tool.image_url} name={tool.name} />
 
           <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <DropdownMenu>

@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams, useRouter, useParams, usePathname } from "next/navigation";
+import Link from "next/link";
 import { Shell } from "@/components/Shell";
 import { ToolCard } from "@/components/ToolCard";
 import { AddToolForm } from "@/components/AddToolForm";
 import { EditToolModal } from "@/components/EditToolModal";
 import type { Tool, Category, SubCategory } from "@/types/database";
 import {
-  Plus, Search, Tag, FilterX, BookmarkCheck, Layers, Sparkles, Loader2, FolderOpen, Trash2,
+  Plus, Search, Loader2, FolderOpen, Trash2, ChevronRight,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { Button } from "@/components/ui/button";
@@ -17,13 +18,16 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Alert } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 export function DashboardContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const isAddingParam = searchParams.get("add") === "true";
+  const { folder = [] } = useParams<{ folder?: string[] }>();
+  const pathname = usePathname();
+  const categoryId = folder[0];
+  const subfolderId = folder[1];
 
   const [tools, setTools] = useState<Tool[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -33,16 +37,23 @@ export function DashboardContent() {
   const [deleteCandidate, setDeleteCandidate] = useState<Tool | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [folderToDelete, setFolderToDelete] = useState<{ id: string; name: string; kind: "category" | "subfolder" } | null>(null);
+  const [folderDeleting, setFolderDeleting] = useState(false);
+  const [folderDeleteError, setFolderDeleteError] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [selectedSubCategory, setSelectedSubCategory] = useState<string>("all");
+  const activeCategory = categories.find((category) => category.id === categoryId);
+  const activeSubfolder = subCategories.find((sub) => sub.id === subfolderId && sub.category_id === categoryId);
   const [addLinkOpen, setAddLinkOpen] = useState(isAddingParam);
   const [subfolderOpen, setSubfolderOpen] = useState(false);
   const [subfolderName, setSubfolderName] = useState("");
-  const [subfolderCategory, setSubfolderCategory] = useState("");
   const [subfolderSaving, setSubfolderSaving] = useState(false);
   const [subfolderError, setSubfolderError] = useState("");
+
+  useEffect(() => {
+    setSearchQuery("");
+    setSubfolderOpen(false);
+  }, [pathname]);
 
   async function fetchData() {
     try {
@@ -66,16 +77,16 @@ export function DashboardContent() {
 
   async function handleAddSubfolder(event: React.FormEvent) {
     event.preventDefault();
-    if (!subfolderName.trim() || !subfolderCategory) {
-      setSubfolderError("Enter a name and choose a category.");
+    if (!activeCategory || subfolderId || !subfolderName.trim()) {
+      setSubfolderError("Enter a sub-folder name inside a category folder.");
       return;
     }
     setSubfolderSaving(true);
     setSubfolderError("");
     try {
-      const response = await fetch("/api/sub-categories", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: subfolderName.trim(), category_id: subfolderCategory }) });
+      const response = await fetch("/api/sub-categories", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: subfolderName.trim(), category_id: activeCategory.id }) });
       if (!response.ok) throw new Error((await response.json()).error || "Could not create sub-folder");
-      setSubfolderName(""); setSubfolderCategory(""); setSubfolderOpen(false); await fetchData();
+      setSubfolderName(""); setSubfolderOpen(false); await fetchData();
     } catch (error) { setSubfolderError(error instanceof Error ? error.message : "Could not create sub-folder"); }
     finally { setSubfolderSaving(false); }
   }
@@ -110,260 +121,114 @@ export function DashboardContent() {
     }
   }
 
-  const filteredTools = tools.filter((tool) => {
-    const q = searchQuery.toLowerCase().trim();
-    const matchesSearch =
-      !q ||
-      tool.name.toLowerCase().includes(q) ||
-      (tool.description && tool.description.toLowerCase().includes(q)) ||
-      tool.url.toLowerCase().includes(q);
-    const matchesCategory = selectedCategory === "all" || tool.category_id === selectedCategory;
-    const matchesSubCategory = selectedSubCategory === "all" || tool.sub_category_id === selectedSubCategory;
-    return matchesSearch && matchesCategory && matchesSubCategory;
-  });
+  async function confirmFolderDelete() {
+    if (!folderToDelete) return;
+    setFolderDeleting(true);
+    setFolderDeleteError("");
+    try {
+      const endpoint = folderToDelete.kind === "category" ? "categories" : "sub-categories";
+      const response = await fetch(`/api/${endpoint}?id=${encodeURIComponent(folderToDelete.id)}`, { method: "DELETE" });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || "Could not delete folder.");
+      }
+      setFolderToDelete(null);
+      await fetchData();
+    } catch (error) {
+      setFolderDeleteError(error instanceof Error ? error.message : "Could not delete folder.");
+    } finally {
+      setFolderDeleting(false);
+    }
+  }
 
-  const availableSubCategories = subCategories.filter(
-    (sub) => selectedCategory === "all" || sub.category_id === selectedCategory
-  );
-
-  const isFiltered =
-    searchQuery !== "" || selectedCategory !== "all" || selectedSubCategory !== "all";
+  const query = searchQuery.trim().toLowerCase();
+  const invalidFolder = Boolean(categoryId && (!activeCategory || (subfolderId && !activeSubfolder)));
+  const visibleFolders = !categoryId
+    ? categories.filter((category) => category.name.toLowerCase().includes(query))
+    : !subfolderId
+      ? subCategories.filter((sub) => sub.category_id === categoryId && sub.name.toLowerCase().includes(query))
+      : [];
+  const visibleTools = categoryId && !invalidFolder ? tools.filter((tool) =>
+    tool.category_id === categoryId &&
+    (subfolderId ? tool.sub_category_id === subfolderId : !tool.sub_category_id) &&
+    (!query || `${tool.name} ${tool.description || ""} ${tool.url}`.toLowerCase().includes(query))
+  ) : [];
+  const title = activeSubfolder?.name || activeCategory?.name || "Resource Library";
+  const gridClass = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3";
+  function closeAddLink() {
+    setAddLinkOpen(false);
+    if (isAddingParam) router.replace(pathname);
+  }
 
   return (
     <Shell>
       <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 flex flex-col">
-        {/* Top Header & Metrics */}
+        <nav aria-label="Folder breadcrumb" className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-5">
+          <Link href="/dashboard" className="hover:text-foreground">All folders</Link>
+          {activeCategory && <><ChevronRight className="h-3.5 w-3.5" /><Link href={`/dashboard/${encodeURIComponent(activeCategory.id)}`} className="hover:text-foreground" aria-current={!subfolderId ? "page" : undefined}>{activeCategory.name}</Link></>}
+          {activeSubfolder && <><ChevronRight className="h-3.5 w-3.5" /><span aria-current="page" className="text-foreground">{activeSubfolder.name}</span></>}
+        </nav>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border/60">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                Resource Library
-              </h1>
-              <Badge variant="secondary" className="font-mono text-[11px] h-5 px-2">
-                {tools.length} total
-              </Badge>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Curate, filter, and access your developer toolkit and design references.
-            </p>
+            <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+            <p className="text-xs text-muted-foreground mt-2">{!categoryId ? "Choose a category folder to explore your resources." : subfolderId ? "Websites saved in this sub-folder." : "Open a sub-folder or browse websites saved directly in this folder."}</p>
           </div>
-
           <div className="flex items-center gap-2">
-            <Button onClick={() => setSubfolderOpen(true)} variant="outline" size="sm" className="gap-1.5 text-xs font-medium">
-              <Layers className="h-4 w-4" />
-              <span>New sub-folder</span>
+            <Button disabled={loading || !activeCategory || Boolean(subfolderId)} onClick={() => { setSubfolderError(""); setSubfolderOpen(true); }} variant="outline" size="sm" className="gap-1.5 text-xs">
+              <FolderOpen className="h-4 w-4" />New sub-folder
             </Button>
-            <Button onClick={() => { setAddLinkOpen(true); router.replace("/dashboard"); }} size="sm" className="gap-1.5 text-xs font-medium">
-              <Plus className="h-4 w-4" />
-              <span>Add Link</span>
-            </Button>
+            <Button disabled={invalidFolder} onClick={() => setAddLinkOpen(true)} size="sm" className="gap-1.5 text-xs"><Plus className="h-4 w-4" />Add Link</Button>
           </div>
         </div>
-
         <div className="pt-6 space-y-6">
-            {/* Filter and Search Bar */}
-            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3 rounded-xl border border-border/70 bg-card/60">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Search by name, description, or domain..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9 text-xs bg-background/50"
-                />
-              </div>
-
-              {/* Category Pills Slider / Filter */}
-              <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto py-1">
-                <Badge
-                  variant={selectedCategory === "all" ? "default" : "outline"}
-                  className="h-9 shrink-0 cursor-pointer rounded-md px-3 py-0 text-xs transition-all select-none hover:border-primary/50"
-                  onClick={() => {
-                    setSelectedCategory("all");
-                    setSelectedSubCategory("all");
-                  }}
-                >
-                  All ({tools.length})
-                </Badge>
-                {categories.map((cat) => {
-                  const count = tools.filter((t) => t.category_id === cat.id).length;
-                  return (
-                    <Badge
-                      key={cat.id}
-                      variant={selectedCategory === cat.id ? "default" : "outline"}
-                      className="h-9 shrink-0 cursor-pointer rounded-md px-3 py-0 text-xs transition-all select-none hover:border-primary/50"
-                      onClick={() => {
-                        setSelectedCategory(cat.id);
-                        setSelectedSubCategory("all");
-                      }}
-                    >
-                      {cat.name} ({count})
-                    </Badge>
-                  );
-                })}
-
-                {isFiltered && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground cursor-pointer gap-1"
-                    onClick={() => {
-                      setSearchQuery("");
-                      setSelectedCategory("all");
-                      setSelectedSubCategory("all");
-                    }}
-                  >
-                    <FilterX className="h-3.5 w-3.5" />
-                    <span>Clear</span>
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {/* Sub-category pills if available */}
-            {selectedCategory !== "all" && availableSubCategories.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5 pl-1">
-                <span className="text-[11px] font-medium text-muted-foreground mr-1 flex items-center gap-1">
-                  <Tag className="h-3 w-3" /> Subcategory:
-                </span>
-                <Badge
-                  variant={selectedSubCategory === "all" ? "secondary" : "outline"}
-                  className="cursor-pointer text-[11px] py-0.5 px-2 select-none"
-                  onClick={() => setSelectedSubCategory("all")}
-                >
-                  All subcategories
-                </Badge>
-                {availableSubCategories.map((sub) => (
-                  <Badge
-                    key={sub.id}
-                    variant={selectedSubCategory === sub.id ? "default" : "outline"}
-                    className="cursor-pointer text-[11px] py-0.5 px-2 select-none"
-                    onClick={() => setSelectedSubCategory(sub.id)}
-                  >
-                    {sub.name}
-                  </Badge>
-                ))}
-              </div>
-            )}
-
-            {/* Content Cards Grid */}
-            {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <Card key={i} className="overflow-hidden border-border/60">
-                    <Skeleton className="aspect-video w-full" />
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Skeleton className="h-5 w-5 rounded" />
-                        <Skeleton className="h-4 w-32" />
-                      </div>
-                      <Skeleton className="h-3 w-full" />
-                      <Skeleton className="h-3 w-3/4" />
-                      <div className="flex gap-1.5 pt-2">
-                        <Skeleton className="h-5 w-16 rounded" />
-                        <Skeleton className="h-5 w-12 rounded" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : filteredTools.length > 0 ? (
-              <div className="space-y-10">
-                {/* When 'All' is selected, group cleanly by category */}
-                {selectedCategory === "all" && !searchQuery ? (
-                  categories.map((cat) => {
-                    const catTools = filteredTools.filter((t) => t.category_id === cat.id);
-                    if (catTools.length === 0) return null;
-
-                    return (
-                      <div key={cat.id} className="space-y-4">
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-2">
-                            <h2 className="text-base font-semibold tracking-tight text-foreground">
-                              {cat.name}
-                            </h2>
-                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-mono">
-                              {catTools.length}
-                            </Badge>
-                          </div>
-                          <Separator className="flex-1" />
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-                          {catTools.map((tool) => (
-                            <ToolCard
-                              key={tool.id}
-                              tool={tool}
-                              onDelete={handleDelete}
-                              onEdit={(t) => setEditingTool(t)}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-                    {filteredTools.map((tool) => (
-                      <ToolCard
-                        key={tool.id}
-                        tool={tool}
-                        onDelete={handleDelete}
-                        onEdit={(t) => setEditingTool(t)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : (
-              /* Empty state */
-              <Card className="border-dashed border-border/80 p-12 text-center bg-card/40">
-                <CardContent className="flex flex-col items-center justify-center p-0 space-y-3">
-                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
-                    <FolderOpen className="h-5 w-5" />
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="text-sm font-semibold text-foreground">
-                      No resources found
-                    </h3>
-                    <p className="text-xs text-muted-foreground max-w-sm">
-                      {isFiltered
-                        ? "No bookmarks match the current query or filters. Try clearing your filters."
-                        : "Your toolkit is empty. Start by adding your first web resource or documentation link."}
-                    </p>
-                  </div>
-                  <div className="pt-2">
-                    {isFiltered ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSearchQuery("");
-                          setSelectedCategory("all");
-                          setSelectedSubCategory("all");
-                        }}
-                        className="text-xs cursor-pointer"
-                      >
-                        Reset Filters
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        onClick={() => router.push("/dashboard?add=true")}
-                        className="text-xs cursor-pointer gap-1.5"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        <span>Add First Resource</span>
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input aria-label="Search current folder" placeholder={!categoryId ? "Search category folders..." : "Search this folder..."} value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} className="pl-9 h-9 text-xs" />
           </div>
+          {loading ? (
+            <div className={gridClass}>{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)}</div>
+          ) : invalidFolder ? (
+            <Alert variant="destructive">Folder not found. <Link href="/dashboard" className="underline">Return to all folders</Link>.</Alert>
+          ) : (
+            <>
+              {visibleFolders.length > 0 && <section aria-label={!categoryId ? "Category folders" : "Sub-folders"}>
+                <h2 className="text-sm font-medium mb-3">{!categoryId ? "Categories" : "Sub-folders"}</h2>
+                <div className={gridClass}>{visibleFolders.map((item) => {
+                  const href = !categoryId ? `/dashboard/${encodeURIComponent(item.id)}` : `${pathname}/${encodeURIComponent(item.id)}`;
+                  const count = tools.filter((tool) => !categoryId ? tool.category_id === item.id : tool.category_id === categoryId && tool.sub_category_id === item.id).length;
+                  const hasSubfolders = !categoryId && subCategories.some((sub) => sub.category_id === item.id);
+                  const blocked = count > 0 || hasSubfolders;
+                  return <Card key={item.id} className="h-full p-0 border-border/70 hover:border-primary/50 transition-colors">
+                    <CardContent className="p-4 space-y-3">
+                      <Link href={href} className="block space-y-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        <FolderOpen className="h-8 w-8 text-primary" />
+                        <h3 className="text-sm font-medium break-words">{item.name}</h3>
+                        <p className="text-xs text-muted-foreground">{count} websites</p>
+                      </Link>
+                      <Button variant="ghost" size="sm" className="text-xs text-destructive" disabled={blocked} title={count ? "Remove stored websites first" : hasSubfolders ? "Delete empty sub-folders first" : "Delete empty folder"} aria-label={`Delete folder ${item.name}`} onClick={() => { setFolderDeleteError(""); setFolderToDelete({ id: item.id, name: item.name, kind: categoryId ? "subfolder" : "category" }); }}>
+                        <Trash2 className="h-3.5 w-3.5" />Delete
+                      </Button>
+                    </CardContent>
+                  </Card>;
+                })}</div>
+              </section>}
+              {categoryId && visibleTools.length > 0 && <section aria-label="Websites">
+                <h2 className="text-sm font-medium mb-3">Websites <Badge variant="secondary" className="ml-2">{visibleTools.length}</Badge></h2>
+                <div className={gridClass}>{visibleTools.map((tool) => <ToolCard key={tool.id} tool={tool} onDelete={handleDelete} onEdit={setEditingTool} />)}</div>
+              </section>}
+              {!visibleFolders.length && !visibleTools.length && <Card className="p-0 border-dashed bg-card/40">
+                <CardContent className="p-8 text-center space-y-3">
+                  <FolderOpen className="h-8 w-8 mx-auto text-muted-foreground" />
+                  <h2 className="text-sm font-medium">{query ? "No matches in this folder" : !categoryId ? "No category folders yet" : "This folder is empty"}</h2>
+                  <p className="text-xs text-muted-foreground">{query ? "Try another search. Contents of nested folders are not searched here." : "Use Add Link to save a resource to your library."}</p>
+                  {query && <Button variant="outline" size="sm" onClick={() => setSearchQuery("")}>Clear search</Button>}
+                </CardContent>
+              </Card>}
+            </>
+          )}
+        </div>
 
-        <Dialog open={addLinkOpen} onOpenChange={(open) => { setAddLinkOpen(open); if (!open) router.replace("/dashboard"); }}>
+        <Dialog open={addLinkOpen} onOpenChange={(open) => { if (open) setAddLinkOpen(true); else closeAddLink(); }}>
           <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>Add Link</DialogTitle>
@@ -372,8 +237,11 @@ export function DashboardContent() {
             <AddToolForm
               categories={categories}
               subCategories={subCategories}
-              onSuccess={() => { setAddLinkOpen(false); fetchData(); confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } }); }}
-              onCancel={() => setAddLinkOpen(false)}
+              key={`${pathname}:${activeCategory?.id || ""}:${activeSubfolder?.id || ""}`}
+              initialCategoryId={activeCategory?.id}
+              initialSubCategoryId={activeSubfolder?.id}
+              onSuccess={() => { closeAddLink(); fetchData(); confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } }); }}
+              onCancel={closeAddLink}
               onRefreshCategories={async () => { const [catRes, subRes] = await Promise.all([fetch("/api/categories"), fetch("/api/sub-categories")]); if (catRes.ok) setCategories(await catRes.json()); if (subRes.ok) setSubCategories(await subRes.json()); }}
             />
           </DialogContent>
@@ -415,13 +283,26 @@ export function DashboardContent() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={subfolderOpen} onOpenChange={setSubfolderOpen}>
+        <Dialog open={Boolean(folderToDelete)} onOpenChange={(open) => { if (!open && !folderDeleting) setFolderToDelete(null); }}>
+          <DialogContent showCloseButton={!folderDeleting}>
+            <DialogHeader>
+              <DialogTitle>Delete empty folder?</DialogTitle>
+              <DialogDescription>“{folderToDelete?.name}” will be permanently deleted. Folders containing websites cannot be deleted.</DialogDescription>
+            </DialogHeader>
+            {folderDeleteError && <Alert variant="destructive">{folderDeleteError}</Alert>}
+            <DialogFooter>
+              <Button variant="outline" disabled={folderDeleting} onClick={() => setFolderToDelete(null)}>Cancel</Button>
+              <Button variant="destructive" disabled={folderDeleting} onClick={confirmFolderDelete}>{folderDeleting && <Loader2 className="h-4 w-4 animate-spin" />}Delete folder</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={subfolderOpen && Boolean(activeCategory) && !subfolderId} onOpenChange={setSubfolderOpen}>
           <DialogContent className="sm:max-w-md">
-            <DialogHeader><DialogTitle>New sub-folder</DialogTitle><DialogDescription>Add a sub-category under an existing category.</DialogDescription></DialogHeader>
+            <DialogHeader><DialogTitle>New sub-folder</DialogTitle><DialogDescription>Create a sub-folder inside {activeCategory?.name}.</DialogDescription></DialogHeader>
             <form onSubmit={handleAddSubfolder} className="space-y-4">
               {subfolderError && <Alert variant="destructive" className="text-xs">{subfolderError}</Alert>}
               <div className="space-y-2"><Label htmlFor="subfolder-name">Name</Label><Input id="subfolder-name" value={subfolderName} onChange={(event) => setSubfolderName(event.target.value)} placeholder="e.g. Component libraries" /></div>
-              <div className="space-y-2"><Label htmlFor="subfolder-category">Category</Label><select id="subfolder-category" value={subfolderCategory} onChange={(event) => setSubfolderCategory(event.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Choose a category</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></div>
               <Button type="submit" disabled={subfolderSaving} className="w-full">{subfolderSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create sub-folder"}</Button>
             </form>
           </DialogContent>

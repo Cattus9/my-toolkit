@@ -16,6 +16,8 @@ interface AddToolFormProps {
   onSuccess: () => void;
   onCancel: () => void;
   onRefreshCategories: () => Promise<void>;
+  initialCategoryId?: string;
+  initialSubCategoryId?: string;
 }
 
 export function AddToolForm({
@@ -24,12 +26,14 @@ export function AddToolForm({
   onSuccess,
   onCancel,
   onRefreshCategories,
+  initialCategoryId = "",
+  initialSubCategoryId = "",
 }: AddToolFormProps) {
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedCategoryId, setSelectedCategoryId] = useState("");
-  const [selectedSubCategoryId, setSelectedSubCategoryId] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState(initialCategoryId);
+  const [selectedSubCategoryId, setSelectedSubCategoryId] = useState(initialSubCategoryId);
 
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
